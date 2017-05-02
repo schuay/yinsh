@@ -3,14 +3,11 @@
 var Yinsh = {};
 
 (function() {
-  Yinsh.Constants = class {
-    get coord_max() {
-      return 5;
-    }
-
-    get coord_min() {
-      return -5;
-    }
+  Yinsh.Constants = {
+    COORD_MAX: 5,
+    COORD_MIN: -5,
+    NUM_MARKERS: 51,
+    NUM_RINGS: 5,
   };
 
   Yinsh.Color = {
@@ -34,7 +31,7 @@ var Yinsh = {};
     ROW_REMOVAL: 2,
   };
 
-  Yinsh.NoPosition = undefined;
+  Yinsh.NoPosition = {};
 
   Yinsh.Piece = class {
     constructor(color, kind) {
@@ -65,6 +62,24 @@ var Yinsh = {};
       this.pieces = [];
       this.board = [];
       this.current_player = Yinsh.Color.WHITE;
+    }
+
+    static NewInitialState() {
+      const state = new Yinsh.GameState();
+
+      for (let i = 0; i < Yinsh.Constants.NUM_MARKERS; i++) {
+        state.pieces.push(
+          new Yinsh.Piece(Yinsh.Color.WHITE, Yinsh.PieceKind.MARKER));
+      }
+
+      for (let i = 0; i < Yinsh.Constants.NUM_RINGS; i++) {
+        state.pieces.push(
+          new Yinsh.Piece(Yinsh.Color.WHITE, Yinsh.PieceKind.RING));
+        state.pieces.push(
+          new Yinsh.Piece(Yinsh.Color.BLACK, Yinsh.PieceKind.RING));
+      }
+
+      return state;
     }
   };
 

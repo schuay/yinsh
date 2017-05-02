@@ -33,50 +33,51 @@ function displayToCube(pt) {
   return hex_round(pixel_to_hex(layout, pixel));
 }
 
-function drawBlackRingAt(hex) {
-  const pt = cubeToDisplay(hex);
+function drawRing(piece) {
+  piece.should.be.an.instanceof(Yinsh.Piece);
+  piece.kind.should.be.exactly(Yinsh.PieceKind.RING);
+
+  const pt = cubeToDisplay(piece.position);
+  const color = (piece.color == Yinsh.Color.WHITE) ? 'white' : 'black';
 
   const path = new paper.Path.Circle({
     center: pt,
     radius: 30,
-    strokeColor: 'black',
+    strokeColor: color,
     strokeWidth: 9,
   });
 }
 
-function drawWhiteRingAt(hex) {
-  const pt = cubeToDisplay(hex);
+function drawMarker(piece) {
+  piece.should.be.an.instanceof(Yinsh.Piece);
+  piece.kind.should.be.exactly(Yinsh.PieceKind.MARKER);
 
-  const path = new paper.Path.Circle({
-    center: pt,
-    radius: 30,
-    strokeColor: 'white',
-    strokeWidth: 9,
-  });
-}
-
-function drawBlackPieceAt(hex) {
-  const pt = cubeToDisplay(hex);
+  const pt = cubeToDisplay(piece.position);
+  const fill_color = (piece.color == Yinsh.Color.WHITE) ? 'white' : 'black';
+  const stroke_color = (piece.color == Yinsh.Color.WHITE) ? 'black' : 'white';
 
   const path = new paper.Path.Circle({
     center: pt,
     radius: 23,
-    strokeColor: 'white',
-    fillColor: 'black',
+    strokeColor: stroke_color,
+    fillColor: fill_color,
     strokeWidth: 2,
   });
 }
 
-function drawWhitePieceAt(hex) {
-  const pt = cubeToDisplay(hex);
+function drawPiece(piece) {
+  piece.should.be.an.instanceof(Yinsh.Piece);
 
-  const path = new paper.Path.Circle({
-    center: pt,
-    radius: 23,
-    strokeColor: 'black',
-    fillColor: 'white',
-    strokeWidth: 2,
-  });
+  if (piece.state != Yinsh.PieceState.ACTIVE) return;
+
+  switch (piece.kind) {
+    case Yinsh.PieceKind.RING:
+      drawRing(piece);
+      break;
+    case Yinsh.PieceKind.MARKER:
+      drawMarker(piece);
+      break;
+  }
 }
 
 function drawGuide(from, to) {
@@ -94,6 +95,8 @@ function drawGuide(from, to) {
     dashArray: [4, 20],
   });
 }
+
+const state = Yinsh.GameState.NewInitialState();
 
 function drawBoard() {
   var background = new paper.Shape.Rectangle({
@@ -148,29 +151,29 @@ function drawBoard() {
     }
   }
 
-  drawWhiteRingAt(new Hex(0, 0, 0));
-  drawWhiteRingAt(new Hex(0, 1, -1));
+  const p1 = state.pieces[0];
+  p1.state = Yinsh.PieceState.ACTIVE;
+  p1.position = new Hex(0, 1, -1);
 
-  drawWhiteRingAt(new Hex(6, 0, -6));
-  drawWhiteRingAt(new Hex(6.2, 0, -6.2));
-  drawWhiteRingAt(new Hex(6.2, 0.5, -6.7));
+  const p2 = state.pieces[1];
+  p2.color = Yinsh.Color.BLACK;
+  p2.state = Yinsh.PieceState.ACTIVE;
+  p2.position = new Hex(4, -3, -1);
 
-  drawWhitePieceAt(new Hex(0, 0, 0));
-  drawWhitePieceAt(new Hex(2, 0, -2));
-
-  drawBlackRingAt(new Hex(-2, 3, -1));
-  drawBlackRingAt(new Hex(3, 1, -4));
-
-  drawBlackRingAt(new Hex(-6, 0, 6));
-  drawBlackRingAt(new Hex(-6.5, 0.3, 6.2));
-  drawBlackRingAt(new Hex(-7, 0.8, 6.2));
-
-  drawBlackPieceAt(new Hex(3, 1, -4));
-  drawBlackPieceAt(new Hex(3, 0, -3));
+  state.pieces.forEach(drawPiece);
 }
 
 function handleMouseDownEvent(event) {
-  drawGuide(new Hex(0, 0, 0), displayToCube(event.point));
+  for (let i = 0; i < state.pieces.length; i++) {
+    const p = state.pieces[i];
+    if (p.state != Yinsh.PieceState.INACTIVE) continue;
+    if (p.kind != Yinsh.PieceKind.MARKER) continue;
+    p.state = Yinsh.PieceState.ACTIVE;
+    p.position = displayToCube(event.point);
+    break;
+  }
+  drawBoard();
+  return false;
 }
 
 window.onload = function() {
