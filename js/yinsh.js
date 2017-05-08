@@ -2,6 +2,10 @@
 
 var Yinsh = {};
 
+if (typeof module !== 'undefined' && exports) {
+  Yinsh = exports;
+}
+
 (function() {
   Yinsh.Constants = {
     COORD_MAX: 5,
