@@ -66,6 +66,7 @@ if (typeof module !== 'undefined' && exports) {
       this.pieces = [];
       this.board = [];
       this.current_player = Yinsh.Color.WHITE;
+      this.phase = Yinsh.Phase.INITIAL_RING_PLACEMENT;
     }
 
     static NewInitialState() {
