@@ -71,6 +71,12 @@ if (typeof module !== 'undefined' && exports) {
       return new Yinsh.Move(
         player, Yinsh.MoveKind.PLACE_RING, { target_position: position });
     }
+
+    static PlaceMarker(player, source_position, target_position) {
+      return new Yinsh.Move(
+        player, Yinsh.MoveKind.PLACE_MARKER,
+        { source_position: source_position, target_position: target_position });
+    }
   };
 
   class Predicates {
@@ -103,6 +109,8 @@ if (typeof module !== 'undefined' && exports) {
 
     if (state.GetPieceAt(move.data.target_position) !== undefined) return false;
 
+    // TODO: Check in-bounds.
+
     return true;
   };
 
@@ -110,10 +118,8 @@ if (typeof module !== 'undefined' && exports) {
     if (state.current_player != move.player) return false;
     if (state.phase != Yinsh.Phase.MARKER_PLACEMENT) return false;
 
-    const is_color = Predicates.IsColor(move.player);
-
     const unused_player_markers = state.FilterPieces(
-      is_color,
+      () => true,
       Predicates.IsMarker,
       Predicates.IsInactive);
     if (unused_player_markers.length == 0) return false;
@@ -121,11 +127,14 @@ if (typeof module !== 'undefined' && exports) {
     const source_piece = state.GetPieceAt(move.data.source_position);
     if (source_piece === undefined) return false;
     if (!Predicates.IsRing(source_piece.kind)) return false;
+
+    const is_color = Predicates.IsColor(move.player);
     if (!is_color(source_piece.color)) return false;
 
     if (state.GetPieceAt(move.data.target_position) !== undefined) return false;
 
     // TODO: Check for rules-conformant move (only 1 contiguous section of markers).
+    //       Move along one axis and not OOB. No ring in-between.
     // TODO: Transition to ROW_REMOVAL or game end.
 
     return true;
@@ -151,23 +160,24 @@ if (typeof module !== 'undefined' && exports) {
     state.current_player = OtherPlayer(state.current_player);
 
     if (Predicates.IsBlack(move.player) && unused_player_rings.length == 1) {
-      state.phase = MARKER_PLACEMENT;
+      state.phase = Yinsh.Phase.MARKER_PLACEMENT;
     }
   };
 
   Processors[Yinsh.MoveKind.PLACE_MARKER] = function(move, state) {
-    const is_color = Predicates.IsColor(move.player);
 
     const unused_player_markers = state.FilterPieces(
-      is_color,
+      () => true,
       Predicates.IsMarker,
       Predicates.IsInactive);
 
     const marker = unused_player_markers[0];
+    const ring = state.GetPieceAt(move.data.source_position);
+
+    marker.color = move.player;
     marker.state = Yinsh.PieceState.ACTIVE;
     marker.position = move.data.source_position;
 
-    const ring = state.GetPieceAt(move.data.source_position);
     ring.position = move.data.target_position;
 
     state.current_player = OtherPlayer(state.current_player);
@@ -226,7 +236,7 @@ if (typeof module !== 'undefined' && exports) {
 
     GetPieceAt(position) {
       const pieces = this.pieces.filter(p => {
-        if (Predicates.IsInactive(p)) return false;
+        if (Predicates.IsInactive(p.state)) return false;
         if (p.position == Yinsh.NoPosition) return false;
         const {q, r, s} = p.position;
         return position.q == q && position.r == r && position.s == s;

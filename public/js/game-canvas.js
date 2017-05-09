@@ -94,6 +94,7 @@ function drawGuide(from, to) {
 
 let state = undefined;
 let socket = undefined;
+let partial_move = undefined;
 
 function drawBoard() {
   var background = new paper.Shape.Rectangle({
@@ -162,6 +163,17 @@ function handleMouseDownEvent(event) {
     case Yinsh.Phase.INITIAL_RING_PLACEMENT:
       const move = Yinsh.Move.PlaceRing(thisPlayer, clicked_position);
       socket.emit('client-send-move', move);
+      break;
+    case Yinsh.Phase.MARKER_PLACEMENT:
+      if (partial_move === undefined) {
+        partial_move = { source_position: clicked_position };
+      } else {
+        const move = Yinsh.Move.PlaceMarker(thisPlayer,
+          partial_move.source_position, clicked_position);
+        socket.emit('client-send-move', move);
+
+        partial_move = undefined;
+      }
       break;
   }
 

@@ -31,6 +31,10 @@ class YinshConnection extends yinshServer.PlayerCallbacks {
     });
 
     socket.on('client-send-move', (data) => {
+      if (this.game === undefined) {
+        this.InvalidMove();
+        return;
+      }
       this.game.ProcessMove(data);
     });
 
