@@ -92,6 +92,7 @@ if (typeof module !== 'undefined' && exports) {
 
   Validators[Yinsh.MoveKind.PLACE_RING] = function(move, state) {
     if (state.current_player != move.player) return false;
+    if (state.phase != Yinsh.Phase.INITIAL_RING_PLACEMENT) return false;
 
     const unused_player_rings = state.FilterPieces(
       Predicates.IsColor(move.player),
