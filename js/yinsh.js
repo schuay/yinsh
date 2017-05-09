@@ -7,9 +7,10 @@ if (typeof module !== 'undefined' && exports) {
 }
 
 (function() {
+  const COORD_MAX = 5;
+  const COORD_MIN = -5;
+
   Yinsh.Constants = {
-    COORD_MAX: 5,
-    COORD_MIN: -5,
     NUM_MARKERS: 51,
     NUM_RINGS: 5,
   };
@@ -93,6 +94,14 @@ if (typeof module !== 'undefined' && exports) {
       predicates[Yinsh.Color.WHITE] = Predicates.IsWhite;
       return predicates[expected];
     }
+
+    static IsInBounds(pos) {
+      if (Math.abs(pos.q) > COORD_MAX
+        || Math.abs(pos.r) > COORD_MAX
+        || Math.abs(pos.s) > COORD_MAX) return false;
+      return [pos.q, pos.r, pos.s].sort().join(',') !=
+             [COORD_MIN, 0, COORD_MAX].join(',');
+    }
   };
 
   const Validators = [];
@@ -100,6 +109,7 @@ if (typeof module !== 'undefined' && exports) {
   Validators[Yinsh.MoveKind.PLACE_RING] = function(move, state) {
     if (state.current_player != move.player) return false;
     if (state.phase != Yinsh.Phase.INITIAL_RING_PLACEMENT) return false;
+    if (!Predicates.IsInBounds(move.data.target_position)) return false;
 
     const unused_player_rings = state.FilterPieces(
       Predicates.IsColor(move.player),
@@ -117,6 +127,8 @@ if (typeof module !== 'undefined' && exports) {
   Validators[Yinsh.MoveKind.PLACE_MARKER] = function(move, state) {
     if (state.current_player != move.player) return false;
     if (state.phase != Yinsh.Phase.MARKER_PLACEMENT) return false;
+    if (!Predicates.IsInBounds(move.data.source_position)) return false;
+    if (!Predicates.IsInBounds(move.data.target_position)) return false;
 
     const unused_player_markers = state.FilterPieces(
       () => true,
