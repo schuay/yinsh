@@ -93,6 +93,7 @@ function drawGuide(from, to) {
 }
 
 let state = undefined;
+let socket = undefined;
 
 function drawBoard() {
   var background = new paper.Shape.Rectangle({
@@ -149,29 +150,22 @@ function drawBoard() {
     }
   }
 
-  const p1 = state.pieces[0];
-  p1.state = Yinsh.PieceState.ACTIVE;
-  p1.position = new Hex(0, 1, -1);
-
-  const p2 = state.pieces[1];
-  p2.color = Yinsh.Color.BLACK;
-  p2.state = Yinsh.PieceState.ACTIVE;
-  p2.position = new Hex(4, -3, -1);
-
   state.pieces.forEach(drawPiece);
 }
 
 function handleMouseDownEvent(event) {
-  for (let i = 0; i < state.pieces.length; i++) {
-    const p = state.pieces[i];
-    if (p.state != Yinsh.PieceState.INACTIVE) continue;
-    if (p.kind != Yinsh.PieceKind.MARKER) continue;
-    p.state = Yinsh.PieceState.ACTIVE;
-    p.position = displayToCube(event.point);
-    break;
+  if (state === undefined) return true;
+  if (!state.IsCurrentPlayer(thisPlayer)) return true;
+
+  const clicked_position = displayToCube(event.point);
+  switch (state.phase) {
+    case Yinsh.Phase.INITIAL_RING_PLACEMENT:
+      const move = Yinsh.Move.PlaceRing(thisPlayer, clicked_position);
+      socket.emit('client-send-move', move);
+      break;
   }
-  drawBoard();
-  return false;
+
+  return true;
 }
 
 window.onload = function() {
@@ -186,13 +180,12 @@ window.onload = function() {
     player: thisPlayer,
   };
 
-  var socket = io.connect();
+  socket = io.connect();
   socket.on('host-request-identity',
     () => socket.emit('client-send-identity', identity));
 
   socket.on('host-send-state', (data) => {
-    console.log(data);
-    state = data;
+    state = Yinsh.GameState.From(data);
 
     drawBoard();
     paper.view.draw();

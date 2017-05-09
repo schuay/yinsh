@@ -19,6 +19,13 @@ if (typeof module !== 'undefined' && exports) {
     BLACK: 1,
   };
 
+  function OtherPlayer(thisPlayer) {
+    switch (thisPlayer) {
+      case Yinsh.Color.WHITE: return Yinsh.Color.BLACK;
+      case Yinsh.Color.BLACK: return Yinsh.Color.WHITE;
+    }
+  }
+
   Yinsh.PieceState = {
     ACTIVE: 0,
     INACTIVE: 1,
@@ -59,20 +66,26 @@ if (typeof module !== 'undefined' && exports) {
       this.kind = kind;
       this.data = data;
     }
+
+    static PlaceRing(player, position) {
+      return new Yinsh.Move(
+        player, Yinsh.MoveKind.PLACE_RING, { target_position: position });
+    }
   };
 
   class Predicates {
-    static IsColor(expected) {
-      const predicates = [];
-      predicates[Yinsh.Color.Black] = IsBlack;
-      predicates[Yinsh.Color.White] = IsWhite;
-      return predicates[expected];
-    }
     static IsBlack(color) { return color == Yinsh.Color.BLACK; }
     static IsWhite(color) { return color == Yinsh.Color.WHITE; }
     static IsRing(kind) { return kind == Yinsh.PieceKind.RING; }
     static IsInactive(state) { return state == Yinsh.PieceState.INACTIVE; }
     static IsActive(state) { return state == Yinsh.PieceState.ACTIVE; }
+
+    static IsColor(expected) {
+      const predicates = [];
+      predicates[Yinsh.Color.BLACK] = Predicates.IsBlack;
+      predicates[Yinsh.Color.WHITE] = Predicates.IsWhite;
+      return predicates[expected];
+    }
   };
 
   const Validators = [];
@@ -81,10 +94,12 @@ if (typeof module !== 'undefined' && exports) {
     if (state.current_player != move.player) return false;
 
     const unused_player_rings = state.FilterPieces(
-      IsColor(move.player), IsRing, IsInactive);
+      Predicates.IsColor(move.player),
+      Predicates.IsRing,
+      Predicates.IsInactive);
     if (unused_player_rings.length == 0) return false;
 
-    if (GetPieceAt(move.target_position) !== undefined) return false;
+    if (state.GetPieceAt(move.data.target_position) !== undefined) return false;
 
     return true;
   };
@@ -95,12 +110,44 @@ if (typeof module !== 'undefined' && exports) {
     }
   };
 
+  const Processors = [];
+
+  Processors[Yinsh.MoveKind.PLACE_RING] = function(move, state) {
+    const unused_player_rings = state.FilterPieces(
+      Predicates.IsColor(move.player), Predicates.IsRing,
+      Predicates.IsInactive);
+
+    console.log(move);
+
+    const ring = unused_player_rings[0];
+    ring.state = Yinsh.PieceState.ACTIVE;
+    // TODO: Wrap moves in methods.
+    ring.position = move.data.target_position;
+
+    state.current_player = OtherPlayer(state.current_player);
+  };
+
+  Yinsh.MoveProcessor = class {
+    static Apply(move, state) {
+      return Processors[move.kind](move, state);
+    }
+  };
+
   Yinsh.GameState = class {
     constructor() {
       this.pieces = [];
       this.board = [];
       this.current_player = Yinsh.Color.WHITE;
       this.phase = Yinsh.Phase.INITIAL_RING_PLACEMENT;
+    }
+
+    static From(o) {
+      const state = new Yinsh.GameState();
+      state.pieces = o.pieces;
+      state.board = o.board;
+      state.current_player = o.current_player;
+      state.phase = o.phase;
+      return state;
     }
 
     static NewInitialState() {
@@ -131,13 +178,17 @@ if (typeof module !== 'undefined' && exports) {
 
     GetPieceAt(position) {
       const pieces = this.pieces.filter(p => {
-        if (IsInactive(p)) return false;
+        if (Predicates.IsInactive(p)) return false;
         if (p.position == Yinsh.NoPosition) return false;
-        const {x, y, z} = p.position;
-        return position.x == x && position.y == y && position.z == z;
+        const {q, r, s} = p.position;
+        return position.q == q && position.r == r && position.s == s;
       });
       if (pieces.length != 1) return undefined;
       return pieces[0];
+    }
+
+    IsCurrentPlayer(player) {
+      return this.current_player == player;
     }
   };
 
@@ -146,7 +197,7 @@ if (typeof module !== 'undefined' && exports) {
       this.moves = [];
     }
 
-    pushMove(move) {
+    PushMove(move) {
       this.moves.push(move);
     }
   };

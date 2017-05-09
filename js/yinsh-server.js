@@ -16,6 +16,10 @@ var YinshServer = {};
     Disconnect() {
       console.log("YinshServer.PlayerCallbacks.Disconnect");
     }
+
+    InvalidMove(move, state) {
+      console.log("YinshServer.InvalidMove");
+    }
   };
 
   YinshServer.Game = class {
@@ -37,6 +41,31 @@ var YinshServer = {};
       }
       this.callbacks[player] = callbacks;
     }
+
+    Callbacks(player) {
+      return this.callbacks[player];
+    }
+
+    Broadcast(fn) {
+      if (this.Callbacks(yinsh.Color.WHITE) !== undefined) {
+        fn(this.Callbacks(yinsh.Color.WHITE));
+      }
+      if (this.Callbacks(yinsh.Color.BLACK) !== undefined) {
+        fn(this.Callbacks(yinsh.Color.BLACK));
+      }
+    }
+
+    ProcessMove(move) {
+      if (!yinsh.MoveValidator.Validate(move, this.state)) {
+        this.Callbacks(move.player).InvalidMove(move, this.state);
+        return;
+      }
+
+      this.history.PushMove(move);
+
+      yinsh.MoveProcessor.Apply(move, this.state);
+      this.Broadcast(cb => cb.SendCurrentState(this.state));
+    }
   };
 
   YinshServer.Initialize = function() {
@@ -56,6 +85,8 @@ var YinshServer = {};
 
     game.SetCallbacks(player, callbacks);
     callbacks.SendCurrentState(game.state);
+
+    return game;
   };
 })();
 

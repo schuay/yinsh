@@ -23,10 +23,15 @@ class YinshConnection extends yinshServer.PlayerCallbacks {
   constructor(socket) {
     super();
     this.socket = socket;
+    this.game = undefined;
 
     socket.on('client-send-identity', (data) => {
       const { gameId, player } = data;
-      yinshServer.NewConnection(gameId, player, this);
+      this.game = yinshServer.NewConnection(gameId, player, this);
+    });
+
+    socket.on('client-send-move', (data) => {
+      this.game.ProcessMove(data);
     });
 
     socket.emit('host-request-identity');
