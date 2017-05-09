@@ -77,6 +77,7 @@ if (typeof module !== 'undefined' && exports) {
     static IsBlack(color) { return color == Yinsh.Color.BLACK; }
     static IsWhite(color) { return color == Yinsh.Color.WHITE; }
     static IsRing(kind) { return kind == Yinsh.PieceKind.RING; }
+    static IsMarker(kind) { return kind == Yinsh.PieceKind.MARKER; }
     static IsInactive(state) { return state == Yinsh.PieceState.INACTIVE; }
     static IsActive(state) { return state == Yinsh.PieceState.ACTIVE; }
 
@@ -105,6 +106,31 @@ if (typeof module !== 'undefined' && exports) {
     return true;
   };
 
+  Validators[Yinsh.MoveKind.PLACE_MARKER] = function(move, state) {
+    if (state.current_player != move.player) return false;
+    if (state.phase != Yinsh.Phase.MARKER_PLACEMENT) return false;
+
+    const is_color = Predicates.IsColor(move.player);
+
+    const unused_player_markers = state.FilterPieces(
+      is_color,
+      Predicates.IsMarker,
+      Predicates.IsInactive);
+    if (unused_player_markers.length == 0) return false;
+
+    const source_piece = state.GetPieceAt(move.data.source_position);
+    if (source_piece === undefined) return false;
+    if (!Predicates.IsRing(source_piece.kind)) return false;
+    if (!is_color(source_piece.color)) return false;
+
+    if (state.GetPieceAt(move.data.target_position) !== undefined) return false;
+
+    // TODO: Check for rules-conformant move (only 1 contiguous section of markers).
+    // TODO: Transition to ROW_REMOVAL or game end.
+
+    return true;
+  };
+
   Yinsh.MoveValidator = class {
     static Validate(move, state) {
       return Validators[move.kind](move, state);
@@ -118,14 +144,35 @@ if (typeof module !== 'undefined' && exports) {
       Predicates.IsColor(move.player), Predicates.IsRing,
       Predicates.IsInactive);
 
-    console.log(move);
-
     const ring = unused_player_rings[0];
     ring.state = Yinsh.PieceState.ACTIVE;
-    // TODO: Wrap moves in methods.
     ring.position = move.data.target_position;
 
     state.current_player = OtherPlayer(state.current_player);
+
+    if (Predicates.IsBlack(move.player) && unused_player_rings.length == 1) {
+      state.phase = MARKER_PLACEMENT;
+    }
+  };
+
+  Processors[Yinsh.MoveKind.PLACE_MARKER] = function(move, state) {
+    const is_color = Predicates.IsColor(move.player);
+
+    const unused_player_markers = state.FilterPieces(
+      is_color,
+      Predicates.IsMarker,
+      Predicates.IsInactive);
+
+    const marker = unused_player_markers[0];
+    marker.state = Yinsh.PieceState.ACTIVE;
+    marker.position = move.data.source_position;
+
+    const ring = state.GetPieceAt(move.data.source_position);
+    ring.position = move.data.target_position;
+
+    state.current_player = OtherPlayer(state.current_player);
+
+    // TODO: Flip all markers in-between.
   };
 
   Yinsh.MoveProcessor = class {
