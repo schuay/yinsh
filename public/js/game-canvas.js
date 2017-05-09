@@ -63,6 +63,19 @@ function drawMarker(piece) {
   });
 }
 
+function drawSelection(position) {
+  const pt = cubeToDisplay(position);
+  const color = (thisPlayer == Yinsh.Color.WHITE) ? 'white' : 'black';
+
+  const path = new paper.Path.Circle({
+    center: pt,
+    radius: 45,
+    strokeColor: color,
+    strokeWidth: 9,
+    dashArray: [1, 1],
+  });
+}
+
 function drawPiece(piece) {
   if (piece.state != Yinsh.PieceState.ACTIVE) return;
 
@@ -80,7 +93,6 @@ function drawGuide(from, to) {
   const from_pt = cubeToDisplay(from);
   const to_pt   = cubeToDisplay(to);
 
-  // const color = "#e75858";
   const color = 'white';
 
   new paper.Path.Line({
@@ -94,6 +106,8 @@ function drawGuide(from, to) {
 
 let state = undefined;
 let socket = undefined;
+
+let selected_position = undefined;
 let partial_move = undefined;
 
 function drawBoard() {
@@ -152,6 +166,10 @@ function drawBoard() {
   }
 
   state.pieces.forEach(drawPiece);
+
+  if (selected_position !== undefined) {
+    drawSelection(selected_position);
+  }
 }
 
 function handleMouseDownEvent(event) {
@@ -167,12 +185,17 @@ function handleMouseDownEvent(event) {
     case Yinsh.Phase.MARKER_PLACEMENT:
       if (partial_move === undefined) {
         partial_move = { source_position: clicked_position };
+        selected_position = clicked_position;
+        drawSelection(clicked_position);
       } else {
         const move = Yinsh.Move.PlaceMarker(thisPlayer,
           partial_move.source_position, clicked_position);
+
         socket.emit('client-send-move', move);
 
         partial_move = undefined;
+        selected_position = undefined;
+        drawBoard();  // Could skip if we sent InvalidMove and refreshed on that.
       }
       break;
   }
